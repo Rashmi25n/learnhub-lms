@@ -64,8 +64,8 @@ export default function LessonPage() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:1337/api/lessons?populate=*&pagination[pageSize]=100"
-        );
+  "https://learnhub-backend-production-2413.up.railway.app/api/lessons?populate=*&pagination[pageSize]=100"
+);
 
         if (!response.ok) {
           throw new Error("Failed to fetch lessons");
