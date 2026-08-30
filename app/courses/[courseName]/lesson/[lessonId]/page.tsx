@@ -12,6 +12,10 @@ type Lesson = {
   order?: number;
 };
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://learnhub-backend-production-2413.up.railway.app";
+
 export default function LessonPage() {
   const params = useParams();
   const router = useRouter();
@@ -64,17 +68,21 @@ export default function LessonPage() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:1337/api/lessons?populate=*&pagination[pageSize]=100"
+          `${API_URL}/api/lessons?populate=*&pagination[pageSize]=100`,
+          {
+            cache: "no-store",
+          }
         );
 
         if (!response.ok) {
-          throw new Error("Failed to fetch lessons");
+          throw new Error(`API error: ${response.status}`);
         }
 
         const result = await response.json();
 
         const lessons = result?.data || [];
 
+        console.log("API URL:", API_URL);
         console.log("ALL LESSONS:", lessons);
         console.log("COURSE:", courseName);
         console.log("LESSON:", lessonId);
@@ -90,18 +98,17 @@ export default function LessonPage() {
             }
 
             const courseData = course.data || course;
-
             const courseAttributes =
               courseData.attributes || courseData;
 
             const courseTitle =
-              courseAttributes.title || "";
+              courseAttributes?.title || "";
 
             const courseSlug =
-              courseAttributes.slug || "";
+              courseAttributes?.slug || "";
 
             const courseDocumentId =
-              courseData.documentId || "";
+              courseData?.documentId || "";
 
             return (
               createSlug(courseTitle) === courseName ||
@@ -110,18 +117,19 @@ export default function LessonPage() {
             );
           })
           .sort((a: any, b: any) => {
-            const orderA = Number(
-              (a.attributes || a).order || 0
-            );
+            const dataA = a.attributes || a;
+            const dataB = b.attributes || b;
 
-            const orderB = Number(
-              (b.attributes || b).order || 0
-            );
+            const orderA = Number(dataA.order || 0);
+            const orderB = Number(dataB.order || 0);
 
             return orderA - orderB;
           });
 
-        console.log("COURSE LESSONS:", courseLessons);
+        console.log(
+          "COURSE LESSONS:",
+          courseLessons
+        );
 
         let selectedLesson = courseLessons.find(
           (item: any) => {
@@ -203,18 +211,10 @@ export default function LessonPage() {
     );
   }
 
-  /*
-   * Your requirement:
-   * Lesson 1 → Lesson 2
-   * Lesson 2 → Lesson 3
-   * Lesson 3 → Course Completed → Quiz
-   */
   const isLastLesson = lessonId >= 3;
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      {/* NAVBAR */}
-
       <nav className="border-b border-white/10 px-6 py-5">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <button
@@ -238,8 +238,6 @@ export default function LessonPage() {
         </div>
       </nav>
 
-      {/* LESSON */}
-
       <section className="mx-auto max-w-5xl px-6 py-12">
         <p className="font-bold tracking-[0.2em] text-cyan-400">
           LESSON {lesson.order || lessonId}
@@ -252,8 +250,6 @@ export default function LessonPage() {
         <p className="mt-4 text-slate-400">
           Course: {courseName}
         </p>
-
-        {/* VIDEO */}
 
         {lesson.videoUrl && (
           <div className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-black">
@@ -269,8 +265,6 @@ export default function LessonPage() {
           </div>
         )}
 
-        {/* CONTENT */}
-
         <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-8">
           <h2 className="text-2xl font-black">
             About this lesson
@@ -281,12 +275,8 @@ export default function LessonPage() {
           </p>
         </div>
 
-        {/* NAVIGATION */}
-
         {!isLastLesson ? (
           <div className="mt-10 flex items-center justify-between gap-4">
-            {/* PREVIOUS */}
-
             {lessonId > 1 ? (
               <button
                 onClick={() =>
@@ -309,8 +299,6 @@ export default function LessonPage() {
               </button>
             )}
 
-            {/* NEXT */}
-
             <button
               onClick={() =>
                 router.push(
@@ -323,7 +311,6 @@ export default function LessonPage() {
             </button>
           </div>
         ) : (
-          /* COURSE COMPLETED */
           <div className="mt-10 rounded-3xl border border-cyan-400/30 bg-gradient-to-r from-cyan-400/10 to-blue-500/10 p-10 text-center">
             <div className="text-6xl">🎉</div>
 

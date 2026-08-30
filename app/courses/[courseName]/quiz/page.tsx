@@ -42,7 +42,7 @@ export default function QuizPage() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:1337/api/quiz-questions?populate=quiz&pagination[pageSize]=100",
+          "https://learnhub-backend-production-2413.up.railway.app/api/quiz-questions?populate=quiz&pagination[pageSize]=100",
           {
             cache: "no-store",
           }
