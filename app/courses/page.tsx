@@ -1,6 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import {
+  enrollCourse,
+  getEnrolledCourses,
+  isLoggedIn,
+  onLearningDataChange,
+  type EnrolledCourse,
+} from "../lib/learning";
 
 type Course = {
   icon: string;
@@ -180,7 +195,7 @@ const courses: Course[] = [
   },
 ];
 
-const categories: string[] = [
+const categories = [
   "All",
   "AI",
   "Programming",
@@ -203,12 +218,47 @@ function createSlug(title: string): string {
 }
 
 export default function CoursesPage() {
-  const [search, setSearch] = useState<string>("");
+  const router = useRouter();
+
+  const [mounted, setMounted] = useState(false);
+  const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] =
-    useState<string>("All");
+    useState("All");
+
+  const [enrolledCourses, setEnrolledCourses] =
+    useState<EnrolledCourse[]>([]);
+
+  /* =========================================================
+     LOGIN + LEARNING DATA
+  ========================================================= */
+
+  useEffect(() => {
+    setMounted(true);
+
+    if (!isLoggedIn()) {
+      router.replace("/login");
+      return;
+    }
+
+    setEnrolledCourses(getEnrolledCourses());
+
+    const unsubscribe =
+      onLearningDataChange(() => {
+        setEnrolledCourses(
+          getEnrolledCourses()
+        );
+      });
+
+    return unsubscribe;
+  }, [router]);
+
+  /* =========================================================
+     SEARCH
+  ========================================================= */
 
   const filteredCourses = useMemo(() => {
-    const searchText = search.toLowerCase().trim();
+    const searchText =
+      search.toLowerCase().trim();
 
     return courses.filter((course) => {
       const matchesCategory =
@@ -217,64 +267,131 @@ export default function CoursesPage() {
 
       const matchesSearch =
         searchText === "" ||
-        course.title.toLowerCase().includes(searchText) ||
-        course.category.toLowerCase().includes(searchText) ||
-        course.description.toLowerCase().includes(searchText);
+        course.title
+          .toLowerCase()
+          .includes(searchText) ||
+        course.category
+          .toLowerCase()
+          .includes(searchText) ||
+        course.description
+          .toLowerCase()
+          .includes(searchText);
 
-      return matchesCategory && matchesSearch;
+      return (
+        matchesCategory &&
+        matchesSearch
+      );
     });
   }, [search, activeCategory]);
+
+  /* =========================================================
+     ENROLL
+  ========================================================= */
+
+  function handleEnroll(course: Course) {
+    const slug = createSlug(course.title);
+
+    enrollCourse({
+      slug,
+      name: course.title,
+      icon: course.icon,
+      category: course.category,
+      totalLessons: 3,
+    });
+
+    setEnrolledCourses(
+      getEnrolledCourses()
+    );
+  }
+
+  /* =========================================================
+     HYDRATION SAFE LOADING
+  ========================================================= */
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-white">
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="text-5xl">📚</div>
+
+            <p className="mt-4 font-bold text-cyan-400">
+              Loading LearnHub...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
 
-      {/* NAVBAR */}
+      {/* =====================================================
+          NAVBAR
+      ===================================================== */}
+
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 px-6 py-5 backdrop-blur-xl">
+
         <div className="mx-auto flex max-w-7xl items-center justify-between">
 
-          <a
+          <Link
             href="/"
             className="text-2xl font-black tracking-tight"
           >
-            Learn<span className="text-cyan-400">Hub</span>
-          </a>
+            Learn
+            <span className="text-cyan-400">
+              Hub
+            </span>
+          </Link>
 
           <div className="hidden items-center gap-8 md:flex">
 
-            <a
+            <Link
               href="/"
               className="transition hover:text-cyan-400"
             >
               Home
-            </a>
+            </Link>
 
-            <a
+            <Link
               href="/courses"
               className="font-bold text-cyan-400"
             >
               Courses
-            </a>
+            </Link>
 
-            <a
-              href="#about"
+            <Link
+              href="/profile"
               className="transition hover:text-cyan-400"
             >
-              About
-            </a>
+              Profile
+            </Link>
 
-            <a
-              href="/login"
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem(
+                  "learnhubUser"
+                );
+
+                router.push("/login");
+              }}
               className="rounded-full bg-cyan-400 px-6 py-2.5 font-bold text-slate-950 transition hover:bg-cyan-300"
             >
-              Login
-            </a>
+              Logout
+            </button>
 
           </div>
 
         </div>
+
       </nav>
 
-      {/* HERO */}
+      {/* =====================================================
+          HERO
+      ===================================================== */}
+
       <section className="relative overflow-hidden px-6 py-24 text-center md:px-10">
 
         <div className="absolute left-1/2 top-10 h-80 w-80 -translate-x-1/2 rounded-full bg-cyan-400/10 blur-3xl" />
@@ -286,20 +403,26 @@ export default function CoursesPage() {
           </p>
 
           <h1 className="mx-auto mt-6 max-w-5xl text-5xl font-black leading-tight md:text-7xl">
+
             Upgrade Your Skills.
+
             <br />
 
             <span className="text-cyan-400">
               Build Your Future.
             </span>
+
           </h1>
 
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-slate-400">
-            Explore industry-focused courses, gain practical knowledge,
-            complete projects and earn certificates with LearnHub.
+            Explore industry-focused courses,
+            gain practical knowledge, complete
+            projects and earn certificates with
+            LearnHub.
           </p>
 
           {/* SEARCH */}
+
           <div className="mx-auto mt-10 flex max-w-2xl items-center rounded-2xl border border-white/10 bg-white/5 p-2 shadow-2xl">
 
             <span className="px-4 text-xl">
@@ -329,9 +452,13 @@ export default function CoursesPage() {
           </div>
 
         </div>
+
       </section>
 
-      {/* STATS */}
+      {/* =====================================================
+          STATS
+      ===================================================== */}
+
       <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 md:grid-cols-4 md:px-10">
 
         {[
@@ -340,10 +467,12 @@ export default function CoursesPage() {
           ["50+", "Projects"],
           ["100%", "Certificate"],
         ].map(([number, label]) => (
+
           <div
             key={label}
             className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center transition hover:border-cyan-400/30"
           >
+
             <h2 className="text-3xl font-black text-cyan-400">
               {number}
             </h2>
@@ -351,12 +480,17 @@ export default function CoursesPage() {
             <p className="mt-2 text-sm text-slate-400">
               {label}
             </p>
+
           </div>
+
         ))}
 
       </section>
 
-      {/* COURSES */}
+      {/* =====================================================
+          COURSES
+      ===================================================== */}
+
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10">
 
         <div className="mb-10">
@@ -374,7 +508,8 @@ export default function CoursesPage() {
               </h2>
 
               <p className="mt-3 text-slate-400">
-                Choose your path and start learning today.
+                Choose your path and start
+                learning today.
               </p>
 
             </div>
@@ -387,15 +522,20 @@ export default function CoursesPage() {
 
         </div>
 
-        {/* CATEGORY BUTTONS */}
+        {/* ===================================================
+            CATEGORIES
+        =================================================== */}
+
         <div className="mb-10 flex flex-wrap gap-3">
 
-          {categories.map((category: string) => (
+          {categories.map((category) => (
 
             <button
               key={category}
               type="button"
-              onClick={() => setActiveCategory(category)}
+              onClick={() =>
+                setActiveCategory(category)
+              }
               className={
                 activeCategory === category
                   ? "rounded-full border border-cyan-400 bg-cyan-400 px-5 py-2.5 text-sm font-bold text-slate-950"
@@ -409,19 +549,29 @@ export default function CoursesPage() {
 
         </div>
 
-        {/* COURSE COUNT */}
+        {/* ===================================================
+            COUNT
+        =================================================== */}
+
         <div className="mb-7 flex items-center justify-between">
 
           <p className="text-sm text-slate-500">
+
             Showing{" "}
+
             <span className="font-bold text-slate-300">
               {filteredCourses.length}
             </span>{" "}
+
             course
-            {filteredCourses.length !== 1 ? "s" : ""}
+            {filteredCourses.length !== 1
+              ? "s"
+              : ""}
+
           </p>
 
           {search && (
+
             <button
               type="button"
               onClick={() => setSearch("")}
@@ -429,119 +579,249 @@ export default function CoursesPage() {
             >
               Clear search
             </button>
+
           )}
 
         </div>
 
-        {/* COURSE GRID */}
-        {filteredCourses.length > 0 ? (
+        {/* ===================================================
+            COURSE GRID
+        =================================================== */}
 
-          <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
 
-            {filteredCourses.map((course: Course) => {
+          {filteredCourses.map((course) => {
 
-              const courseSlug = createSlug(course.title);
+            const courseSlug =
+              createSlug(course.title);
 
-              return (
+            /*
+             * IMPORTANT:
+             * Read from React state, NOT directly
+             * from localStorage during render.
+             */
+            const enrolledCourse =
+              enrolledCourses.find(
+                (item) =>
+                  item.slug === courseSlug
+              );
 
-                <article
-                  key={course.title}
-                  className="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition duration-300 hover:-translate-y-2 hover:border-cyan-400/40 hover:bg-white/[0.08]"
-                >
+            const isEnrolled =
+              Boolean(enrolledCourse);
 
-                  {/* IMAGE */}
-                  <div className="relative h-52 overflow-hidden">
+            const progress =
+              enrolledCourse?.progress ?? 0;
 
-                    <img
-                      src={course.thumbnail}
-                      alt={course.title}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                    />
+            const completedLessons =
+              enrolledCourse?.completedLessons ?? 0;
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+            const totalLessons =
+              enrolledCourse?.totalLessons ?? 3;
 
-                    <div className="absolute left-5 top-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-slate-950/70 text-3xl backdrop-blur">
-                      {course.icon}
+            const isCompleted =
+              progress >= 100;
+
+            return (
+
+              <article
+                key={course.title}
+                className="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition duration-300 hover:-translate-y-2 hover:border-cyan-400/40 hover:bg-white/[0.08]"
+              >
+
+                {/* IMAGE */}
+
+                <div className="relative h-52 overflow-hidden">
+
+                  <img
+                    src={course.thumbnail}
+                    alt={course.title}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                  />
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+
+                  <div className="absolute left-5 top-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-slate-950/70 text-3xl backdrop-blur">
+                    {course.icon}
+                  </div>
+
+                  <span className="absolute right-5 top-5 rounded-full border border-cyan-400/30 bg-slate-950/70 px-3 py-1.5 text-xs font-bold text-cyan-300 backdrop-blur">
+                    {course.category}
+                  </span>
+
+                </div>
+
+                {/* CONTENT */}
+
+                <div className="p-7">
+
+                  <h3 className="text-2xl font-black transition group-hover:text-cyan-400">
+                    {course.title}
+                  </h3>
+
+                  <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-400">
+                    {course.description}
+                  </p>
+
+                  {/* INFO */}
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+
+                    <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+
+                      <p className="text-xs text-slate-500">
+                        LEVEL
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-200">
+                        📚 {course.level}
+                      </p>
+
                     </div>
 
-                    <span className="absolute right-5 top-5 rounded-full border border-cyan-400/30 bg-slate-950/70 px-3 py-1.5 text-xs font-bold text-cyan-300 backdrop-blur">
-                      {course.category}
+                    <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+
+                      <p className="text-xs text-slate-500">
+                        DURATION
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-200">
+                        ⏱️ {course.duration}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  {/* CERTIFICATE */}
+
+                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3">
+
+                    <span className="text-lg">
+                      🏆
+                    </span>
+
+                    <span className="text-sm font-bold text-yellow-300">
+                      Certificate Included
                     </span>
 
                   </div>
 
-                  {/* CONTENT */}
-                  <div className="p-7">
+                  {/* =================================================
+                      PROGRESS
+                  ================================================= */}
 
-                    <h3 className="text-2xl font-black transition group-hover:text-cyan-400">
-                      {course.title}
-                    </h3>
+                  {isEnrolled && (
 
-                    <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-400">
-                      {course.description}
-                    </p>
+                    <div className="mt-5 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4">
 
-                    {/* INFO */}
-                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between">
 
-                      <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+                        <span className="text-sm font-bold text-slate-300">
+                          Learning Progress
+                        </span>
 
-                        <p className="text-xs text-slate-500">
-                          LEVEL
-                        </p>
-
-                        <p className="mt-1 text-sm font-bold text-slate-200">
-                          📚 {course.level}
-                        </p>
+                        <span className="font-black text-cyan-400">
+                          {progress}%
+                        </span>
 
                       </div>
 
-                      <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+                      {/* PROGRESS BAR */}
 
-                        <p className="text-xs text-slate-500">
-                          DURATION
-                        </p>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
 
-                        <p className="mt-1 text-sm font-bold text-slate-200">
-                          ⏱️ {course.duration}
-                        </p>
+                        <div
+                          className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                          style={{
+                            width: `${progress}%`,
+                          }}
+                        />
+
+                      </div>
+
+                      {/* LESSON COUNT */}
+
+                      <div className="mt-3 flex justify-between text-xs text-slate-500">
+
+                        <span>
+                          {completedLessons} /{" "}
+                          {totalLessons} lessons
+                        </span>
+
+                        {isCompleted && (
+                          <span className="font-bold text-green-400">
+                            Course Completed 🎉
+                          </span>
+                        )}
 
                       </div>
 
                     </div>
 
-                    {/* CERTIFICATE */}
-                    <div className="mt-4 flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3">
+                  )}
 
-                      <span className="text-lg">
-                        🏆
-                      </span>
+                  {/* =================================================
+                      BUTTON
+                  ================================================= */}
 
-                      <span className="text-sm font-bold text-yellow-300">
-                        Certificate Included
-                      </span>
+                  {!isEnrolled ? (
 
-                    </div>
-
-                    {/* VIEW COURSE */}
-                    <a
-                      href={`/courses/${courseSlug}`}
-                      className="mt-6 block w-full rounded-xl bg-cyan-400 py-3.5 text-center font-black text-slate-950 transition hover:bg-cyan-300"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEnroll(course)
+                      }
+                      className="mt-6 w-full rounded-xl bg-cyan-400 py-3.5 text-center font-black text-slate-950 transition hover:bg-cyan-300"
                     >
-                      View Course →
-                    </a>
+                      Enroll Now 🚀
+                    </button>
 
-                  </div>
+                  ) : (
 
-                </article>
+                    <div className="mt-6 space-y-3">
 
-              );
+                      {isCompleted ? (
 
-            })}
+                        <div className="rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3 text-center text-sm font-bold text-green-300">
+                          ✅ Course Completed
+                        </div>
 
-          </div>
+                      ) : (
 
-        ) : (
+                        <div className="rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3 text-center text-sm font-bold text-green-300">
+                          ✅ Enrolled
+                        </div>
+
+                      )}
+
+                      <Link
+                        href={`/courses/${courseSlug}`}
+                        className="block w-full rounded-xl bg-cyan-400 py-3.5 text-center font-black text-slate-950 transition hover:bg-cyan-300"
+                      >
+                        {isCompleted
+                          ? "Review Course →"
+                          : "Continue Learning →"}
+                      </Link>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              </article>
+
+            );
+
+          })}
+
+        </div>
+
+        {/* ===================================================
+            NO RESULTS
+        =================================================== */}
+
+        {filteredCourses.length === 0 && (
 
           <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-20 text-center">
 
@@ -554,7 +834,8 @@ export default function CoursesPage() {
             </h3>
 
             <p className="mt-3 text-slate-400">
-              Try another course name or select a different category.
+              Try another course name or select
+              a different category.
             </p>
 
             <button
@@ -574,7 +855,10 @@ export default function CoursesPage() {
 
       </section>
 
-      {/* CERTIFICATION CTA */}
+      {/* =====================================================
+          CTA
+      ===================================================== */}
+
       <section className="px-6 pb-24 md:px-10">
 
         <div className="mx-auto max-w-6xl overflow-hidden rounded-3xl border border-cyan-400/20 bg-gradient-to-r from-cyan-400/10 to-blue-500/10 p-10 md:p-16">
@@ -594,20 +878,21 @@ export default function CoursesPage() {
               </h2>
 
               <p className="mt-5 max-w-lg leading-7 text-slate-400">
-                Complete your course, pass the assessment and earn a
-                professional certificate that showcases your new skills.
+                Complete your course, pass the
+                assessment and earn a professional
+                certificate that showcases your new
+                skills.
               </p>
 
-              <a
-                href="/login"
+              <Link
+                href="/courses"
                 className="mt-8 inline-block rounded-full bg-cyan-400 px-8 py-3.5 font-black text-slate-950 transition hover:bg-cyan-300"
               >
-                Start Learning 🚀
-              </a>
+                Continue Learning 🚀
+              </Link>
 
             </div>
 
-            {/* CERTIFICATE PREVIEW */}
             <div className="flex justify-center">
 
               <div className="w-full max-w-sm rounded-3xl border border-yellow-400/30 bg-slate-950 p-8 text-center shadow-2xl">
@@ -627,15 +912,17 @@ export default function CoursesPage() {
                 <div className="mx-auto my-6 h-px bg-white/10" />
 
                 <p className="text-xs text-slate-500">
-                  This certificate is proudly presented to
+                  This certificate is proudly
+                  presented to
                 </p>
 
                 <p className="mt-3 text-xl font-black text-cyan-400">
-                  Your Name
+                  LearnHub Student
                 </p>
 
                 <p className="mt-3 text-xs text-slate-500">
-                  Successfully completed the course
+                  Successfully completed the
+                  course
                 </p>
 
               </div>
@@ -648,14 +935,17 @@ export default function CoursesPage() {
 
       </section>
 
-      {/* FOOTER */}
-      <footer
-        id="about"
-        className="border-t border-white/10 px-6 py-12 text-center"
-      >
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
+
+      <footer className="border-t border-white/10 px-6 py-12 text-center">
 
         <h2 className="text-2xl font-black">
-          Learn<span className="text-cyan-400">Hub</span>
+          Learn
+          <span className="text-cyan-400">
+            Hub
+          </span>
         </h2>
 
         <p className="mt-3 text-slate-500">
